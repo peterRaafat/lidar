@@ -35,8 +35,7 @@ static std::vector<std::vector<int>> euclideanCluster(const std::vector<std::vec
             if ((cluster.size() >= minSize) && (cluster.size() <= maxSize))
             {
                 clusters.push_back(cluster);
-            }
-            
+            }   
         }
     }
 
@@ -80,7 +79,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     roi.setMax(maxPoint);
     roi.setInputCloud(cloud);
     roi.filter(*cloud);
-
+    
     pcl::CropBox<PointT> roiRoof;
     roiRoof.setMin(Eigen::Vector4f(-2.5, -1.8, -4.0, 1.0));
     roiRoof.setMax(Eigen::Vector4f(3, 1.8, 0, 1.0));
@@ -89,7 +88,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
     roiRoof.getRemovedIndices(*inliers);
     roiRoof.filter(*cloud);
-
+    
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
@@ -289,6 +288,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::E
 
     // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
     struct KdTree tree;
+    memset(&tree, 0, sizeof(tree));
     std::vector<std::vector<float>> points;
     //insert the point cloud in to the tree
     for (int index = 0; index < cloud->points.size(); index++)
@@ -303,6 +303,8 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::E
         pcl::PointCloud<PointT>::Ptr clusterCloud(new pcl::PointCloud<PointT>());
         for (int indice : cluster)
             clusterCloud->points.push_back(cloud->points[indice]);;
+            clusterCloud->width = clusterCloud->points.size();
+            clusterCloud->height = 1;
         outClusters.push_back(clusterCloud);
     }
 
