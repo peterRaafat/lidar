@@ -40,8 +40,8 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     roi.filter(*cloud);
 
     pcl::CropBox<PointT> roiRoof;
-    roiRoof.setMin(Eigen::Vector4f(-4, -2, -4.0, 1.0));
-    roiRoof.setMax(Eigen::Vector4f(4, 2, 0, 1.0));
+    roiRoof.setMin(Eigen::Vector4f(-2.5, -1.8, -4.0, 1.0));
+    roiRoof.setMax(Eigen::Vector4f(3, 1.8, 0, 1.0));
     roiRoof.setInputCloud(cloud);
     roiRoof.setNegative(true);
     pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
@@ -69,7 +69,7 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
         planeCloud->points.push_back(cloud->points[index]);
     }
 
-    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    pcl::ExtractIndices<PointT> extract;
     extract.setInputCloud(cloud);
     extract.setIndices(inliers);
     extract.setNegative(true);
@@ -109,32 +109,35 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
 {
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
-    /*
-    pcl::PointCloud<PointT> obstacles;
-    pcl::PointCloud<PointT> plane;
-    pcl::PointCloud<PointT> cloud_copy;
-    cloud_copy = *cloud;
-    
-    std::vector<int> inliers = Ransac<PointT>(cloud, maxIterations, distanceThreshold);
    
-    for (auto index = 0; index < inliers.size(); index++)
-    {
-        plane.points.push_back(cloud->points[inliers[index]]);
-        cloud_copy.erase(cloud_copy.begin() + inliers[index]);
-    }
+    pcl::PointCloud<PointT>::Ptr obstacleCloud(new pcl::PointCloud<PointT>());
+    pcl::PointCloud<PointT>::Ptr planeCloud(new pcl::PointCloud<PointT>());
     
-    obstacles = cloud_copy;
-    */
+    std::unordered_set<int> inliers = Ransac<PointT>(cloud, maxIterations, distanceThreshold);
+   
+    for (int index = 0; index < cloud->points.size(); index++)
+    {
+        PointT point = cloud->points[index];
+        if (inliers.count(index))
+            planeCloud->points.push_back(point);
+        else
+            obstacleCloud->points.push_back(point);
+    }
+    std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult(obstacleCloud, planeCloud);
+    
+    /*
     pcl::PointIndices::Ptr inliers = Ransac<PointT>(cloud, maxIterations, distanceThreshold);
     std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult = SeparateClouds(inliers, cloud);
+    */
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "plane segmentation took " << elapsedTime.count() << " milliseconds" << std::endl;
-
+    
     //std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> segResult(&obstacles, &plane);
     return segResult;
 }
 
+/*
 template<typename PointT>
 pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol)
 {
@@ -147,9 +150,9 @@ pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int m
     float distance;
     int numInliers;
     int maxNumInliers = 0U;
-    pcl::PointXYZ pointOne;
-    pcl::PointXYZ pointTwo;
-    pcl::PointXYZ pointThree;
+    PointT pointOne;
+    PointT pointTwo;
+    PointT pointThree;
 
 
     pcl::PointIndices::Ptr indicies(new pcl::PointIndices());
@@ -162,7 +165,7 @@ pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int m
         randInt = rand() % size;
         pointTwo = cloud->points[randInt];
         randInt = rand() % size;
-        pointTwo = cloud->points[randInt];
+        pointThree = cloud->points[randInt];
         float cross[3] = {
             ((pointTwo.y - pointOne.y) * (pointThree.z - pointOne.z)) - ((pointTwo.z - pointOne.z) * (pointThree.y - pointOne.y)),
             ((pointTwo.z - pointOne.z) * (pointThree.x - pointOne.x)) - ((pointTwo.x - pointOne.x) * (pointThree.z - pointOne.z)),
@@ -176,7 +179,7 @@ pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int m
         indicies->indices.clear();
         for (index = 0U; index < size; index++)
         {
-            pcl::PointXYZ point = cloud->points[index];
+            PointT point = cloud->points[index];
             distance = abs((a * point.x) + (b * point.y) + (c * point.z) + (d)) / sqrt((a * a) + (b * b) + (c * c));
             if (distance < distanceTol)
             {
@@ -189,6 +192,68 @@ pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int m
         {
             maxNumInliers = numInliers;
             inliersResult->indices.clear();
+            *inliersResult = *indicies;
+        }
+    }
+
+    return inliersResult;
+
+}
+*/
+
+template<typename PointT>
+std::unordered_set<int> Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int maxIterations, float distanceTol)
+{
+    std::unordered_set<int> inliersResult;
+    int i;
+    int index;
+    int size = cloud->size();
+    int randInt;
+    float a, b, c, d;
+    float distance;
+    int numInliers;
+    int maxNumInliers = 0U;
+    PointT pointOne;
+    PointT pointTwo;
+    PointT pointThree;
+
+
+    std::unordered_set<int> indicies;
+    srand(time(NULL));
+
+    for (i = 0U; i < maxIterations; i++)
+    {
+        randInt = rand() % size;
+        pointOne = cloud->points[randInt];
+        randInt = rand() % size;
+        pointTwo = cloud->points[randInt];
+        randInt = rand() % size;
+        pointThree = cloud->points[randInt];
+        float cross[3] = {
+            ((pointTwo.y - pointOne.y) * (pointThree.z - pointOne.z)) - ((pointTwo.z - pointOne.z) * (pointThree.y - pointOne.y)),
+            ((pointTwo.z - pointOne.z) * (pointThree.x - pointOne.x)) - ((pointTwo.x - pointOne.x) * (pointThree.z - pointOne.z)),
+            ((pointTwo.x - pointOne.x) * (pointThree.y - pointOne.y)) - ((pointTwo.y - pointOne.y) * (pointThree.x - pointOne.x))
+        };
+        a = cross[0];
+        b = cross[1];
+        c = cross[2];
+        d = -((a * pointOne.x) + (b * pointOne.y) + (c * pointOne.z));
+        numInliers = 0U;
+        indicies.clear();
+        for (index = 0U; index < size; index++)
+        {
+            PointT point = cloud->points[index];
+            distance = abs((a * point.x) + (b * point.y) + (c * point.z) + (d)) / sqrt((a * a) + (b * b) + (c * c));
+            if (distance < distanceTol)
+            {
+                numInliers++;
+                indicies.insert(index);
+            }
+        }
+        if (numInliers > maxNumInliers)
+        {
+            maxNumInliers = numInliers;
+            inliersResult.clear();
             inliersResult = indicies;
         }
     }
@@ -196,8 +261,6 @@ pcl::PointIndices::Ptr Ransac(typename pcl::PointCloud<PointT>::Ptr cloud, int m
     return inliersResult;
 
 }
-
-
 template<typename PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::Clustering(typename pcl::PointCloud<PointT>::Ptr cloud, float clusterTolerance, int minSize, int maxSize)
 {
@@ -209,11 +272,11 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
     // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
 
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     tree->setInputCloud(cloud);
 
     std::vector<pcl::PointIndices> cluster_indices;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+    pcl::EuclideanClusterExtraction<PointT> ec;
     ec.setClusterTolerance(clusterTolerance); // 2cm
     ec.setMinClusterSize(minSize);
     ec.setMaxClusterSize(maxSize);
@@ -224,7 +287,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     int j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<PointT>::Ptr cloud_cluster(new pcl::PointCloud<PointT>);
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
             cloud_cluster->push_back((*cloud)[*pit]); //*
         cloud_cluster->width = cloud_cluster->size();

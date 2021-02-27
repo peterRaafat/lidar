@@ -87,7 +87,7 @@ std::unordered_set<int> Ransac(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, int ma
         randInt = rand() % size;
         pointTwo = cloud->points[randInt];
         randInt = rand() % size;
-        pointTwo = cloud->points[randInt];
+        pointThree = cloud->points[randInt];
         float cross[3] = {
             ((pointTwo.y - pointOne.y) * (pointThree.z - pointOne.z)) - ((pointTwo.z - pointOne.z) * (pointThree.y - pointOne.y)),
             ((pointTwo.z - pointOne.z) * (pointThree.x - pointOne.x)) - ((pointTwo.x - pointOne.x) * (pointThree.z - pointOne.z)),
@@ -140,6 +140,7 @@ int main ()
 	for(int index = 0; index < cloud->points.size(); index++)
 	{
 		pcl::PointXYZ point = cloud->points[index];
+        bool temp = inliers.count(index);
 		if(inliers.count(index))
 			cloudInliers->points.push_back(point);
 		else
