@@ -40,7 +40,7 @@ struct KdTree
 		}
 		else
 		{
-			if ((depth % 2) == 0)
+			if ((depth % 3) == 0)
 			{
 				//split by x
 				if (point[0] >= (*pp_node)->point[0])
@@ -53,10 +53,23 @@ struct KdTree
 					insert(point, id, &((*pp_node)->left), ++depth);
 				}
 			}
-			else
+			else if((depth % 3) == 1)
 			{
 				//split by y
 				if (point[1] >= (*pp_node)->point[1])
+				{
+					//go right
+					insert(point, id, &((*pp_node)->right), ++depth);
+				}
+				else
+				{
+					insert(point, id, &((*pp_node)->left), ++depth);
+				}
+			}
+			else
+			{
+				//split by z
+				if (point[2] >= (*pp_node)->point[2])
 				{
 					//go right
 					insert(point, id, &((*pp_node)->right), ++depth);
@@ -75,74 +88,47 @@ struct KdTree
 	std::vector<int> search(std::vector<float> target, float distanceTol)
 	{
 		std::vector<int> ids;
-		search(target, distanceTol, &root, 0, &ids);
+		search(target, distanceTol, root, 0, &ids);
 		return ids;
 	}
-
-	void search(std::vector<float> target, float distanceTol, struct Node** pp_node ,int depth, std::vector<int>* p_result)
+	bool IsInBoundary(std::vector<float> pointA, std::vector<float> pointB, float distance)
 	{
-		if (*(pp_node) != NULL)
+		bool result = true;
+		result = (pointA[0] >= (pointB[0] - distance)) && result;
+		result = (pointA[0] <= (pointB[0] + distance)) && result;
+		result = (pointA[1] >= (pointB[1] - distance)) && result;
+		result = (pointA[1] <= (pointB[1] + distance)) && result;
+		result = (pointA[2] >= (pointB[2] - distance)) && result;
+		result = (pointA[2] <= (pointB[2] + distance)) && result;
+		return result;
+	}
+
+	void search(std::vector<float> target, float distanceTol, struct Node* p_node ,int depth, std::vector<int>* p_result)
+	{
+		if (p_node != NULL)
 		{
-			if ((depth % 2) == 0)
+			if (IsInBoundary(p_node->point, target, distanceTol))
 			{
-				//check by X
-				if (abs((*(pp_node))->point[0] - target[0]) <= distanceTol)
+				float x_2 = (p_node->point[0] - target[0]) * (p_node->point[0] - target[0]);
+				float y_2 = (p_node->point[1] - target[1]) * (p_node->point[1] - target[1]);
+				float z_2 = (p_node->point[2] - target[2]) * (p_node->point[2] - target[2]);
+				float dist = sqrt(x_2 + y_2 + z_2);
+				if (dist <= distanceTol)
 				{
-					//point is in the box
-					float dist = sqrt((pow(((*(pp_node))->point[0] - target[0]), 2)) + (pow(((*(pp_node))->point[1] - target[1]), 2)));
-					if (dist <= distanceTol)
-					{
-						//add point to the vector
-						p_result->push_back((*(pp_node))->id);
-					}
-					search(target, distanceTol, &(*(pp_node))->left, ++depth, p_result);
-					search(target, distanceTol, &(*(pp_node))->right, ++depth, p_result);
-				}
-				else
-				{
-					//point is outside the box we need to check whether we split left or right
-					if ((*(pp_node))->point[0] > target[0])
-					{
-						//ignore the right section
-						search(target, distanceTol, &(*(pp_node))->left, ++depth, p_result);
-					}
-					else
-					{
-						//ignore left section
-						search(target, distanceTol, &(*(pp_node))->right, ++depth, p_result);
-					}
+					p_result->push_back(p_node->id);
 				}
 			}
-			else
+
+			if ((target[depth % 3] - distanceTol) < p_node->point[depth % 3])
 			{
-				//check by Y
-				if (abs((*(pp_node))->point[1] - target[1]) <= distanceTol)
-				{
-					//point is in the box
-					float dist = sqrt((pow(((*(pp_node))->point[0] - target[0]), 2)) + (pow(((*(pp_node))->point[1] - target[1]), 2)));
-					if (dist <= distanceTol)
-					{
-						//add point to the vector
-						p_result->push_back((*(pp_node))->id);
-					}
-					search(target, distanceTol, &(*(pp_node))->left, ++depth, p_result);
-					search(target, distanceTol, &(*(pp_node))->right, ++depth, p_result);
-				}
-				else
-				{
-					//point is outside the box we need to check whether we split left or right
-					if ((*(pp_node))->point[1] > target[1])
-					{
-						//ignore the right section
-						search(target, distanceTol, &(*(pp_node))->left, ++depth, p_result);
-					}
-					else
-					{
-						//ignore left section
-						search(target, distanceTol, &(*(pp_node))->right, ++depth, p_result);
-					}
-				}
+				search(target, distanceTol, p_node->left, ++depth, p_result);
 			}
+
+			if ((target[depth % 3] + distanceTol) > p_node->point[depth % 3])
+			{
+				search(target, distanceTol, p_node->right, ++depth, p_result);
+			}
+
 		}
 	}
 
