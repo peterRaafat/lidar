@@ -85,7 +85,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     roiRoof.setMax(Eigen::Vector4f(3, 1.8, 0, 1.0));
     roiRoof.setInputCloud(cloud);
     roiRoof.setNegative(true);
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+    typename pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
     roiRoof.getRemovedIndices(*inliers);
     roiRoof.filter(*cloud);
     
@@ -99,7 +99,7 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
 
 
 template<typename PointT>
-std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::SeparateClouds(pcl::PointIndices::Ptr inliers, typename pcl::PointCloud<PointT>::Ptr cloud) 
+std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::SeparateClouds(typename pcl::PointIndices::Ptr inliers, typename pcl::PointCloud<PointT>::Ptr cloud) 
 {
   // TODO: Create two new point clouds, one cloud with obstacles and other with segmented plane
     typename pcl::PointCloud<PointT>::Ptr obstCloud(new pcl::PointCloud<PointT>());
@@ -127,8 +127,8 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     auto startTime = std::chrono::steady_clock::now();
 	
     // TODO:: Fill in this function to find inliers for the cloud.
-    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+    typename pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
+    typename pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
     pcl::SACSegmentation<PointT> seg;
     seg.setOptimizeCoefficients(true);
     seg.setModelType(pcl::SACMODEL_PLANE);
@@ -151,8 +151,8 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
    
-    pcl::PointCloud<PointT>::Ptr obstacleCloud(new pcl::PointCloud<PointT>());
-    pcl::PointCloud<PointT>::Ptr planeCloud(new pcl::PointCloud<PointT>());
+    typename pcl::PointCloud<PointT>::Ptr obstacleCloud(new pcl::PointCloud<PointT>());
+    typename pcl::PointCloud<PointT>::Ptr planeCloud(new pcl::PointCloud<PointT>());
     
     std::unordered_set<int> inliers = Ransac<PointT>(cloud, maxIterations, distanceThreshold);
    
@@ -244,7 +244,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
     // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
 
-    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    typename pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
     tree->setInputCloud(cloud);
 
     std::vector<pcl::PointIndices> cluster_indices;
@@ -259,7 +259,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     int j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); it != cluster_indices.end(); ++it)
     {
-        pcl::PointCloud<PointT>::Ptr cloud_cluster(new pcl::PointCloud<PointT>);
+        typename pcl::PointCloud<PointT>::Ptr cloud_cluster(new pcl::PointCloud<PointT>);
         for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); ++pit)
             cloud_cluster->push_back((*cloud)[*pit]); //*
         cloud_cluster->width = cloud_cluster->size();
@@ -300,7 +300,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::E
     std::vector<std::vector<int>> clusters = euclideanCluster(points, &tree, clusterTolerance, minSize, maxSize);
     for (std::vector<int> cluster : clusters)
     {
-        pcl::PointCloud<PointT>::Ptr clusterCloud(new pcl::PointCloud<PointT>());
+        typename pcl::PointCloud<PointT>::Ptr clusterCloud(new pcl::PointCloud<PointT>());
         for (int indice : cluster)
             clusterCloud->points.push_back(cloud->points[indice]);;
             clusterCloud->width = clusterCloud->points.size();
